@@ -115,7 +115,7 @@ class db_coins extends CActiveRecord
 		else if (YIIMP_PUBLIC_EXPLORER || $force || user()->getState('yaamp_admin')) {
 			$urlParams = array_merge(array('id'=>$this->id), $params);
 			Yii::import('application.modules.explorer.ExplorerController');
-			$url = ExplorerController::createUrl('/explorer', $urlParams);
+			$url = (new ExplorerController($defaultAction='index'))->createUrl('/explorer', $urlParams);
 			return CHtml::link($label, trim($url,'?'), $htmlOptions);
 		}
 		return $label;
