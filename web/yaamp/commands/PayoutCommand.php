@@ -232,7 +232,7 @@ class PayoutCommand extends CConsoleCommand
 				}
 			}
 			if ($totaldiff != 0.0)
-				echo "$user_addr: Total sent $totalsent (real), $totalpayouts (db) -> Diff $totaldiff $symbol\n";
+				echo "$user_addr: Total sent $totalsent (float), $totalpayouts (db) -> Diff $totaldiff $symbol\n";
 			else
 				echo "$user_addr: ok\n";
 		}
