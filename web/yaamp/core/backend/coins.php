@@ -126,10 +126,9 @@ function BackendCoinsUpdate()
 
 //		if($coin->symbol != 'BTC')
 //		{
-//			if($coin->symbol == 'PPC')
-//				$template = $remote->getblocktemplate('');
-//			else
-			$template = $remote->getblocktemplate('{}');
+			$template = $remote->getblocktemplate('{"rules":["segwit"]}');
+			if(!$coin->usesegwit)
+				$template = $remote->getblocktemplate('');
 
 			if($template && isset($template['coinbasevalue']))
 			{
