@@ -115,13 +115,12 @@ function BackendCoinsUpdate()
 				$coin->hassubmitblock = true;
 		}
 
-		if($coin->auxpow == NULL)
+		if($coin->auxpow)
 		{
 			$ret = $remote->getauxblock();
 
-			if(strcasecmp($remote->error, 'method not found') == 0)
-				$coin->auxpow = false;
-			else
+			$coin->auxpow = false;
+			if($ret && isset($ret['hash']))
 				$coin->auxpow = true;
 		}
 
