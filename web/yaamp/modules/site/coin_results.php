@@ -301,13 +301,13 @@ if ($DCR || $DGB) $account = '*';
 else if ($ETH) $account = $coin->master_wallet;
 
 $txs = $remote->listtransactions($account, $maxrows);
-
 if (empty($txs)) {
 	if (!empty($remote->error)) {
-		echo "<b>RPC Error: {$remote->error}</b><p/>";
+		$txs = $remote->listtransactions('*', 200);
+		if (!empty($remote->error)) {
+			echo "<b>RPC Error: {$remote->error}</b><p/>";
+		}
 	}
-	// retry...
-	$txs = $remote->listtransactions($account, 200);
 }
 
 $txs_array = array(); $lastday = '';
