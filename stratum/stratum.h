@@ -91,6 +91,7 @@ extern bool g_stratum_renting;
 extern bool g_stratum_segwit;
 extern int g_limit_txs_per_block;
 
+extern bool g_lockdebug;
 extern bool g_handle_haproxy_ips;
 extern int g_socket_recv_timeout;
 

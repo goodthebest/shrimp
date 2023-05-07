@@ -1,3 +1,5 @@
+#include <iostream>
+#include <chrono>
 
 struct YAAMP_CLIENT;
 
@@ -19,6 +21,9 @@ public:
 	CommonList();
 	~CommonList();
 
+	long long timer;
+	char callfn[128];
+
 	CLI AddHead(void *data);
 	CLI AddTail(void *data);
 
@@ -30,7 +35,7 @@ public:
 	CLI Find(void *data);
 	void Swap(CLI i1, CLI i2);
 
-	void Enter();
+	void Enter(const char* str = __builtin_FUNCTION());
 	void Leave();
 
 	pthread_mutex_t mutex;

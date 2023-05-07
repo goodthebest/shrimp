@@ -51,6 +51,7 @@ bool g_debuglog_rpc;
 bool g_debuglog_list;
 bool g_debuglog_remote;
 
+bool g_lockdebug = false;
 bool g_autoexchange = true;
 
 uint64_t g_max_shares = 0;
