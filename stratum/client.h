@@ -62,6 +62,9 @@ public:
 	char password[1024];
 	char worker[1024];
 
+	char coinbaseraw_last[1024];
+	char coinbasehash_last[1024];
+
 	double difficulty_actual;
 	double difficulty_remote;
 	double difficulty_written;

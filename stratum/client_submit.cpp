@@ -6,8 +6,8 @@ uint64_t lyra2z_height = 0;
 //#define MERKLE_DEBUGLOG
 //#define DONTSUBMIT
 
-void build_submit_values(YAAMP_JOB_VALUES *submitvalues, YAAMP_JOB_TEMPLATE *templ,
-	const char *nonce1, const char *nonce2, const char *ntime, const char *nonce)
+void build_submit_values(YAAMP_JOB_VALUES* submitvalues, YAAMP_JOB_TEMPLATE* templ,
+	YAAMP_CLIENT* client, const char* nonce1, const char* nonce2, const char* ntime, const char* nonce)
 {
 	sprintf(submitvalues->coinbase, "%s%s%s%s", templ->coinb1, nonce1, nonce2, templ->coinb2);
 	int coinbase_len = strlen(submitvalues->coinbase);
@@ -19,38 +19,33 @@ void build_submit_values(YAAMP_JOB_VALUES *submitvalues, YAAMP_JOB_TEMPLATE *tem
 	char doublehash[128];
 	memset(doublehash, 0, 128);
 
-	// some (old) wallet/algos need a simple SHA256 (blakecoin, whirlcoin, groestlcoin...)
-	YAAMP_HASH_FUNCTION merkle_hash = sha256_double_hash_hex;
-	if (g_current_algo->merkle_func)
-		merkle_hash = g_current_algo->merkle_func;
-	merkle_hash((char *)coinbase_bin, doublehash, coinbase_len/2);
+	// check if weve used this coinbase before
+	bool already_hashed = !strcmp(submitvalues->coinbase, client->coinbaseraw_last);
+	if (!already_hashed)
+	{
+		// some (old) wallet/algos need a simple SHA256 (blakecoin, whirlcoin, groestlcoin...)
+		YAAMP_HASH_FUNCTION merkle_hash = sha256_double_hash_hex;
+		if (g_current_algo->merkle_func)
+			merkle_hash = g_current_algo->merkle_func;
+		merkle_hash((char *)coinbase_bin, doublehash, coinbase_len / 2);
 
-	string merkleroot = merkle_with_first(templ->txsteps, doublehash);
-	ser_string_be(merkleroot.c_str(), submitvalues->merkleroot_be, 8);
+		string merkleroot = merkle_with_first(templ->txsteps, doublehash);
+		ser_string_be(merkleroot.c_str(), submitvalues->merkleroot_be, 8);
 
-#ifdef MERKLE_DEBUGLOG
-	printf("merkle root %s\n", merkleroot.c_str());
-#endif
-	if (!strcmp(g_stratum_algo, "lbry")) {
-		sprintf(submitvalues->header, "%s%s%s%s%s%s%s", templ->version, templ->prevhash_be, submitvalues->merkleroot_be,
-			templ->claim_be, ntime, templ->nbits, nonce);
-		ser_string_be(submitvalues->header, submitvalues->header_be, 112/4);
-	} else if (strlen(templ->extradata_be) == 128) { // LUX SC
-		sprintf(submitvalues->header, "%s%s%s%s%s%s%s", templ->version, templ->prevhash_be, submitvalues->merkleroot_be,
-			ntime, templ->nbits, nonce, templ->extradata_be);
-		ser_string_be(submitvalues->header, submitvalues->header_be, 36); // 80+64 / sizeof(u32)
+		// store for next pass
+		strcpy(client->coinbaseraw_last, submitvalues->coinbase);
+		strcpy(client->coinbasehash_last, submitvalues->merkleroot_be);
 	} else {
-		sprintf(submitvalues->header, "%s%s%s%s%s%s", templ->version, templ->prevhash_be, submitvalues->merkleroot_be,
-			ntime, templ->nbits, nonce);
-		ser_string_be(submitvalues->header, submitvalues->header_be, 20);
+		strcpy(submitvalues->merkleroot_be, client->coinbasehash_last);
 	}
 
+	sprintf(submitvalues->header, "%s%s%s%s%s%s", templ->version, templ->prevhash_be, submitvalues->merkleroot_be,
+		ntime, templ->nbits, nonce);
+	ser_string_be(submitvalues->header, submitvalues->header_be, 20);
 	binlify(submitvalues->header_bin, submitvalues->header_be);
 
-//	printf("%s\n", submitvalues->header_be);
-	int header_len = strlen(submitvalues->header)/2;
-	g_current_algo->hash_function((char *)submitvalues->header_bin, (char *)submitvalues->hash_bin, header_len);
-
+	int header_len = strlen(submitvalues->header) / 2;
+	g_current_algo->hash_function((char*)submitvalues->header_bin, (char*)submitvalues->hash_bin, header_len);
 	hexlify(submitvalues->hash_hex, submitvalues->hash_bin, 32);
 	string_be(submitvalues->hash_hex, submitvalues->hash_be);
 }
@@ -489,7 +484,7 @@ bool client_submit(YAAMP_CLIENT *client, json_value *json_params)
 	if(is_decred)
 		build_submit_values_decred(&submitvalues, templ, client->extranonce1, extranonce2, ntime, nonce, vote, true);
 	else
-		build_submit_values(&submitvalues, templ, client->extranonce1, extranonce2, ntime, nonce);
+		build_submit_values(&submitvalues, templ, client, client->extranonce1, extranonce2, ntime, nonce);
 
 	if (templ->height && !strcmp(g_current_algo->name,"lyra2z")) {
 		lyra2z_height = templ->height;
