@@ -123,7 +123,6 @@ YAAMP_CLIENT *client_find_notify_id(const char *notify_id, bool reconnecting);
 void get_next_extraonce1(char *extraonce1);
 void get_random_key(char *key);
 
-void client_sort();
 void client_block_ip(YAAMP_CLIENT *client, const char *reason);
 void client_block_ipset(YAAMP_CLIENT *client, const char *ipset_name);
 

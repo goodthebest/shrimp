@@ -100,7 +100,6 @@ inline void job_delete(YAAMP_OBJECT *object)
 
 int job_get_jobid();
 
-void job_sort();
 void job_relock_clients(int jobid_old, int jobid_new);
 void job_unlock_clients(YAAMP_JOB *job=NULL);
 void job_assign_locked_clients(YAAMP_JOB *job);
