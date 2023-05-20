@@ -151,7 +151,6 @@ YAAMP_ALGO g_algos[] =
 	{"blake2b", blake2b_hash, 1, 0 },
 	{"blake2s", blake2s_hash, 1, 0 },
 	{"vanilla", blakecoin_hash, 1, 0 },
-	{"decred", decred_hash, 1, 0 },
 
 	{"deep", deep_hash, 1, 0, 0},
 	{"fresh", fresh_hash, 0x100, 0, 0},

@@ -189,8 +189,6 @@ void block_prune(YAAMP_DB *db)
 		if(!block->confirmed)
 		{
 			int elapsed = 30;
-			// slow block time...
-			if(g_stratum_algo && !strcmp(g_stratum_algo, "decred")) elapsed = 60 * 15; // 15mn
 
 			if((block->created + elapsed) < time(NULL))
 				object_delete(block);

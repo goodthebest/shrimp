@@ -84,8 +84,7 @@ int client_send_difficulty(YAAMP_CLIENT *client, double difficulty)
 void client_initialize_difficulty(YAAMP_CLIENT *client)
 {
 	char *p = strstr(client->password, "d=");
-	char *p2 = strstr(client->password, "decred=");
-	if(!p || p2) return;
+	if(!p) return;
 
 	double diff = client_normalize_difficulty(atof(p+2));
 	uint64_t user_target = diff_to_target(diff);

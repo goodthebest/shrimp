@@ -50,85 +50,6 @@ void build_submit_values(YAAMP_JOB_VALUES* submitvalues, YAAMP_JOB_TEMPLATE* tem
 	string_be(submitvalues->hash_hex, submitvalues->hash_be);
 }
 
-/////////////////////////////////////////////
-
-static void create_decred_header(YAAMP_JOB_TEMPLATE *templ, YAAMP_JOB_VALUES *out,
-	const char *ntime, const char *nonce, const char *nonce2, const char *vote, bool usegetwork)
-{
-	struct __attribute__((__packed__)) {
-		uint32_t version;
-		char prevblock[32];
-		char merkleroot[32];
-		char stakeroot[32];
-		uint16_t votebits;
-		char finalstate[6];
-		uint16_t voters;
-		uint8_t freshstake;
-		uint8_t revoc;
-		uint32_t poolsize;
-		uint32_t nbits;
-		uint64_t sbits;
-		uint32_t height;
-		uint32_t size;
-		uint32_t ntime;
-		uint32_t nonce;
-		unsigned char extra[32];
-		uint32_t stakever;
-		uint32_t hashtag[3];
-	} header;
-
-	memcpy(&header, templ->header, sizeof(header));
-
-	memset(header.extra, 0, 32);
-	sscanf(nonce, "%08x", &header.nonce);
-
-	if (strcmp(vote, "")) {
-		uint16_t votebits = 0;
-		sscanf(vote, "%04hx", &votebits);
-		header.votebits = (header.votebits & 1) | (votebits & 0xfffe);
-	}
-
-	binlify(header.extra, nonce2);
-
-	hexlify(out->header, (const unsigned char*) &header, 180);
-	memcpy(out->header_bin, &header, sizeof(header));
-}
-
-static void build_submit_values_decred(YAAMP_JOB_VALUES *submitvalues, YAAMP_JOB_TEMPLATE *templ,
-	const char *nonce1, const char *nonce2, const char *ntime, const char *nonce, const char *vote, bool usegetwork)
-{
-	if (!usegetwork) {
-		// not used yet
-		char doublehash[128] = { 0 };
-
-		sprintf(submitvalues->coinbase, "%s%s%s%s", templ->coinb1, nonce1, nonce2, templ->coinb2);
-		int coinbase_len = strlen(submitvalues->coinbase);
-
-		unsigned char coinbase_bin[1024];
-		memset(coinbase_bin, 0, 1024);
-		binlify(coinbase_bin, submitvalues->coinbase);
-
-		YAAMP_HASH_FUNCTION merkle_hash = sha256_double_hash_hex;
-		if (g_current_algo->merkle_func)
-			merkle_hash = g_current_algo->merkle_func;
-		merkle_hash((char *)coinbase_bin, doublehash, coinbase_len/2);
-
-		string merkleroot = merkle_with_first(templ->txsteps, doublehash);
-		ser_string_be(merkleroot.c_str(), submitvalues->merkleroot_be, 8);
-
-#ifdef MERKLE_DEBUGLOG
-		printf("merkle root %s\n", merkleroot.c_str());
-#endif
-	}
-	create_decred_header(templ, submitvalues, ntime, nonce, nonce2, vote, usegetwork);
-
-	int header_len = strlen(submitvalues->header)/2;
-	g_current_algo->hash_function((char *)submitvalues->header_bin, (char *)submitvalues->hash_bin, header_len);
-
-	hexlify(submitvalues->hash_hex, submitvalues->hash_bin, 32);
-	string_be(submitvalues->hash_hex, submitvalues->hash_be);
-}
-
 /////////////////////////////////////////////////////////////////////////////////
 
 static void client_do_submit(YAAMP_CLIENT *client, YAAMP_JOB *job, YAAMP_JOB_VALUES *submitvalues,
@@ -413,8 +334,6 @@ bool client_submit(YAAMP_CLIENT *client, json_value *json_params)
 		return true;
 	}
 
-	bool is_decred = job->coind && !strcmp("DCR", job->coind->rpcencoding);
-
 	YAAMP_JOB_TEMPLATE *templ = job->templ;
 
 	if(strlen(nonce) != YAAMP_NONCE_SIZE*2 || !ishexa(nonce, YAAMP_NONCE_SIZE*2)) {
@@ -448,30 +367,7 @@ bool client_submit(YAAMP_CLIENT *client, json_value *json_params)
 		return true;
 	}
 
-	// check if the submitted extranonce is valid
-	if(is_decred && client->extranonce2size > 4) {
-		char extra1_id[16], extra2_id[16];
-		int cmpoft = client->extranonce2size*2 - 8;
-		strcpy(extra1_id, &client->extranonce1[cmpoft]);
-		strcpy(extra2_id, &extranonce2[cmpoft]);
-		int extradiff = (int) strcmp(extra2_id, extra1_id);
-		int extranull = (int) !strcmp(extra2_id, "00000000");
-		if (extranull && client->extranonce2size > 8)
-			extranull = (int) !strcmp(&extranonce2[8], "00000000" "00000000");
-		if (extranull) {
-			debuglog("extranonce %s is empty!, should be %s - %s\n", extranonce2, extra1_id, client->sock->ip);
-			client_submit_error(client, job, 27, "Invalid extranonce2 suffix", extranonce2, ntime, nonce);
-			return true;
-		}
-		if (extradiff) {
-			// some ccminer pre-release doesn't fill correctly the extranonce
-			client_submit_error(client, job, 27, "Invalid extranonce2 suffix", extranonce2, ntime, nonce);
-			socket_send(client->sock, "{\"id\":null,\"method\":\"mining.set_extranonce\",\"params\":[\"%s\",%d]}\n",
-				client->extranonce1, client->extranonce2size);
-			return true;
-		}
-	}
-	else if(!ishexa(extranonce2, client->extranonce2size*2)) {
+	if(!ishexa(extranonce2, client->extranonce2size*2)) {
 		client_submit_error(client, job, 27, "Invalid nonce2", extranonce2, ntime, nonce);
 		return true;
 	}
@@ -480,11 +376,7 @@ bool client_submit(YAAMP_CLIENT *client, json_value *json_params)
 
 	YAAMP_JOB_VALUES submitvalues;
 	memset(&submitvalues, 0, sizeof(submitvalues));
-
-	if(is_decred)
-		build_submit_values_decred(&submitvalues, templ, client->extranonce1, extranonce2, ntime, nonce, vote, true);
-	else
-		build_submit_values(&submitvalues, templ, client, client->extranonce1, extranonce2, ntime, nonce);
+    build_submit_values(&submitvalues, templ, client, client->extranonce1, extranonce2, ntime, nonce);
 
 	if (templ->height && !strcmp(g_current_algo->name,"lyra2z")) {
 		lyra2z_height = templ->height;
